@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IPTV Server Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+    h1  { font-size: 1.6rem; color: #7dd3fc; margin-bottom: 0.4rem; }
+    p.sub { color: #64748b; margin-bottom: 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .card { background: #1e2535; border-radius: 10px; padding: 1.4rem; }
+    .card .val { font-size: 2rem; font-weight: 700; color: #38bdf8; }
+    .card .lbl { font-size: 0.8rem; color: #94a3b8; margin-top: 0.3rem; }
+    .section { background: #1e2535; border-radius: 10px; padding: 1.4rem; margin-bottom: 1.5rem; }
+    .section h2 { font-size: 1rem; color: #7dd3fc; margin-bottom: 1rem; }
+    a { color: #38bdf8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .links { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    .btn { background: #0369a1; color: #fff; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; font-size: 0.9rem; }
+    .btn:hover { background: #0284c7; }
+    .btn.danger { background: #7c3aed; }
+    .btn.danger:hover { background: #6d28d9; }
+    pre { background: #0f1117; padding: 1rem; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; color: #94a3b8; margin-top: 0.8rem; max-height: 300px; }
+    #msg { color: #4ade80; min-height: 1.2rem; margin-top: 0.5rem; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>📡 IPTV Server Dashboard</h1>
+  <p class="sub" id="updated">Loading stats…</p>
+
+  <div class="grid">
+    <div class="card"><div class="val" id="active">—</div><div class="lbl">Active Channels</div></div>
+    <div class="card"><div class="val" id="dead">—</div><div class="lbl">Dead Channels</div></div>
+    <div class="card"><div class="val" id="elapsed">—</div><div class="lbl">Last Update (sec)</div></div>
+    <div class="card"><div class="val" id="net">—</div><div class="lbl">Net Change</div></div>
+  </div>
+
+  <div class="section">
+    <h2 style="margin-bottom:.5rem">📺 Watch TV</h2>
+    <a href="/tv.html" style="display:inline-block;background:#0369a1;color:#fff;border-radius:8px;padding:.6rem 1.4rem;font-size:1rem;font-weight:600;text-decoration:none;margin-bottom:1rem">▶ Open TV Player</a>
+    <h2>📂 Playlist Links</h2>
+    <div class="links">
+      <a href="/index.m3u">🎬 Active Channels (index.m3u)</a>
+      <a href="/dead.m3u">💀 Dead Channels (dead.m3u)</a>
+      <a href="/playlist.m3u">🎵 Music + Podcasts (playlist.m3u)</a>
+      <a href="/iptv-org.m3u">🌍 International (iptv-org.m3u)</a>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>⚙️ Actions</h2>
+    <button class="btn" onclick="trigger('update')">🔄 Trigger Channel Update</button>
+    <button class="btn danger" onclick="trigger('generate-playlist')">🎙️ Regenerate Podcast Playlist</button>
+    <div id="msg"></div>
+  </div>
+
+  <div class="section">
+    <h2>📊 Full Report</h2>
+    <pre id="report">Loading…</pre>
+  </div>
+
+  <script>
+    async function load() {
+      try {
+        const r = await fetch('/api/stats');
+        const d = await r.json();
+        if (d.message) { document.getElementById('report').textContent = d.message; return; }
+        document.getElementById('active').textContent  = d.after?.active ?? '—';
+        document.getElementById('dead').textContent    = d.after?.dead  ?? '—';
+        document.getElementById('elapsed').textContent = d.elapsedSeconds ?? '—';
+        document.getElementById('net').textContent     = (d.netChange >= 0 ? '+' : '') + (d.netChange ?? '—');
+        document.getElementById('updated').textContent = 'Last updated: ' + (d.updatedAt ?? 'never');
+        document.getElementById('report').textContent  = JSON.stringify(d, null, 2);
+      } catch(e) { document.getElementById('report').textContent = 'Failed to load stats.'; }
+    }
+
+    async function trigger(action) {
+      const msg = document.getElementById('msg');
+      msg.textContent = `Starting ${action}…`;
+      try {
+        const r = await fetch(`/api/${action}`, { method: 'POST' });
+        const d = await r.json();
+        msg.textContent = d.message || 'Started.';
+        setTimeout(load, 3000);
+      } catch(e) { msg.textContent = 'Request failed.'; }
+    }
+
+    load();
+    setInterval(load, 30000); // auto-refresh every 30s
+  </script>
+</body>
+</html>
